@@ -1,0 +1,83 @@
+﻿@page "/oracletest"
+@using BlazorDemo.Shared
+@inject HttpClient Http
+
+<h1>Lot cards</h1>
+
+@if (listing == null)
+{
+    <div class="loading">Loading...</div>
+}
+else
+{
+    <table class="table table-responsive">
+            @foreach (var item in data)
+            { 
+                <tr>
+                    <td colspan="4">
+                        @item.Value[0].Seller_Company_Name (@(item.Value[0].Company_Lots_Count))
+                        <img src="/images/@(item.Value[0].Seller_Company_Logo)" />
+                    </td>
+                </tr>
+                foreach (var subItem in item.Value)
+                {
+                    <tr>
+                        <td>
+                            <a href="http://test-ui-mobile.uzex.uz/lot/@(item.Key)" class="btn btn-link" target="_blank">
+                                <span class="oi oi-external-link" aria-hidden="true"></span>
+                                @subItem.Display_Id
+                            </a>
+                        </td>
+                        <td>@subItem.Number_Prefix @subItem.Number_Code @subItem.Number_Body</td>
+                        <td>@subItem.Start_Price</td>
+                        <td>@subItem.Start_Date.ToShortDateString()</td>
+                    </tr>
+                }
+                 
+                if (!finished[item.Key])
+                { 
+                    <tr>
+                        <td colspan="4">
+                            <p class="text-center">
+                                <button class="btn btn-outline-primary" onclick=@(async () => await LoadDataAsync(item.Key))>
+                                    <span class="oi oi-expand-down" aria-hidden="true"></span>
+                                    More...
+                                </button>
+                            </p>
+                        </td>
+                    </tr>
+                }
+            }
+    </table>
+}
+
+@functions {
+    IDictionary<int, List<MainLotItem>> data = new Dictionary<int, List<MainLotItem>>();
+    IDictionary<int, bool> finished = new Dictionary<int, bool>();
+    int page = 0;
+    MainLotListing listing;
+
+    protected override async Task OnInitAsync()
+    {
+        listing = await Http.GetJsonAsync<MainLotListing>($"api/SampleData/FilterLots");
+
+        foreach (var item in listing.Items.GroupBy(a => a.Seller_Company_Id))
+        {
+            data[item.Key] = new List<MainLotItem>(item);
+            finished[item.Key] = false;
+        }
+    }
+
+    protected async Task LoadDataAsync(int company)
+    {
+        page++;
+
+        var items = await Http.GetJsonAsync<IEnumerable<MainLotItem>>($"api/SampleData/CardLots?page={page}&company={company}");
+        if (items.Count() < 2)
+        {
+            finished[company] = true;
+        }
+        data[company].AddRange(items);
+    }
+
+}
